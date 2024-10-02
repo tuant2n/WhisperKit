@@ -172,6 +172,7 @@ public extension AudioProcessing {
 public class AudioProcessor: NSObject, AudioProcessing {
     private var lastInputDevice: DeviceID?
     public var audioEngine: AVAudioEngine?
+    public var recordFile: AVAudioFile?
     public var audioSamples: ContiguousArray<Float> = []
     public var audioEnergy: [(rel: Float, avg: Float, max: Float, min: Float)] = []
     public var relativeEnergyWindow: Int = 20
@@ -751,7 +752,7 @@ public extension AudioProcessor {
         #endif
     }
 
-    func setupEngine(inputDeviceID: DeviceID? = nil) throws -> AVAudioEngine {
+    func setupEngine(inputDeviceID: DeviceID? = nil, outputFile: URL? = nil) throws -> AVAudioEngine {
         let audioEngine = AVAudioEngine()
         let inputNode = audioEngine.inputNode
 
@@ -766,6 +767,11 @@ public extension AudioProcessor {
 
         guard let nodeFormat = AVAudioFormat(commonFormat: inputFormat.commonFormat, sampleRate: hardwareSampleRate, channels: inputFormat.channelCount, interleaved: inputFormat.isInterleaved) else {
             throw WhisperError.audioProcessingFailed("Failed to create node format")
+        }
+        
+        if let outputFile = outputFile {
+            let audioFile = try AVAudioFile.init(forWriting: outputFile, settings: nodeFormat.settings)
+            self.recordFile = audioFile
         }
 
         // Desired format (16,000 Hz, 1 channel)
@@ -792,6 +798,10 @@ public extension AudioProcessor {
 
             let newBufferArray = Self.convertBufferToArray(buffer: buffer)
             self.processBuffer(newBufferArray)
+            
+            if let file = self.recordFile {
+                try? file.write(from: buffer)
+            }
         }
 
         audioEngine.prepare()
@@ -806,13 +816,13 @@ public extension AudioProcessor {
         }
     }
 
-    func startRecordingLive(inputDeviceID: DeviceID? = nil, callback: (([Float]) -> Void)? = nil) throws {
+    func startRecordingLive(inputDeviceID: DeviceID? = nil, outputFile: URL? = nil, callback: (([Float]) -> Void)? = nil) throws {
         audioSamples = []
         audioEnergy = []
 
         try? setupAudioSessionForDevice()
 
-        audioEngine = try setupEngine(inputDeviceID: inputDeviceID)
+        audioEngine = try setupEngine(inputDeviceID: inputDeviceID, outputFile: outputFile)
 
         // Set the callback
         audioBufferCallback = callback
