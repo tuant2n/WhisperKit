@@ -60,8 +60,8 @@ public protocol AudioProcessing {
     var relativeEnergyWindow: Int { get set }
 
     /// Starts recording audio from the specified input device, resetting the previous state
-    func startRecordingLive(inputDeviceID: DeviceID?, callback: (([Float]) -> Void)?) throws
-
+    func startRecordingLive(inputDeviceID: DeviceID?, outputFile: URL?, callback: (([Float]) -> Void)?) throws
+    
     /// Pause recording
     func pauseRecording()
 
@@ -84,8 +84,8 @@ public extension AudioProcessing {
         }.value
     }
 
-    func startRecordingLive(inputDeviceID: DeviceID? = nil, callback: (([Float]) -> Void)?) throws {
-        try startRecordingLive(inputDeviceID: inputDeviceID, callback: callback)
+    func startRecordingLive(inputDeviceID: DeviceID? = nil, outputFile: URL? = nil, callback: (([Float]) -> Void)?) throws {
+        try startRecordingLive(inputDeviceID: inputDeviceID, outputFile: outputFile, callback: callback)
     }
 
     func resumeRecordingLive(inputDeviceID: DeviceID? = nil, callback: (([Float]) -> Void)?) throws {
