@@ -46,6 +46,9 @@ public protocol AudioProcessing {
         saveSegment: Bool
     ) -> MLMultiArray?
 
+    /// AVAudioFile
+    var recordFile: AVAudioFile? { get }
+    
     /// Stores the audio samples to be transcribed
     var audioSamples: ContiguousArray<Float> { get }
 
