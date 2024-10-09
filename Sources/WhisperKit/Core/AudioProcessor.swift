@@ -803,7 +803,11 @@ public extension AudioProcessor {
             self.processBuffer(newBufferArray)
             
             if let file = self.recordFile {
-                try? file.write(from: buffer)
+                do {
+                    try file.write(from: buffer)
+                } catch {
+                    Logging.error("Failed to write to file: \(error)")
+                }
             }
         }
 
