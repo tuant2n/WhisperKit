@@ -787,9 +787,9 @@ public extension AudioProcessor {
         }
 
         let bufferSize = AVAudioFrameCount(minBufferLength) // 100ms - 400ms supported
-        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: nodeFormat) { [weak self] (buffer: AVAudioPCMBuffer, _: AVAudioTime) in
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: nodeFormat) { [weak self] (inputBuffer: AVAudioPCMBuffer, _: AVAudioTime) in
             guard let self = self else { return }
-            var buffer = buffer
+            var buffer = inputBuffer
             if !buffer.format.sampleRate.isEqual(to: Double(WhisperKit.sampleRate)) {
                 do {
                     buffer = try Self.resampleBuffer(buffer, with: converter)
@@ -804,7 +804,7 @@ public extension AudioProcessor {
             
             if let file = self.recordFile {
                 do {
-                    try file.write(from: buffer)
+                    try file.write(from: inputBuffer)
                 } catch {
                     Logging.error("Failed to write to file: \(error)")
                 }
