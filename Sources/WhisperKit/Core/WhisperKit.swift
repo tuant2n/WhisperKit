@@ -392,23 +392,28 @@ open class WhisperKit {
         audioPath: String
     ) async throws -> (language: String, langProbs: [String: Float]) {
         let audioBuffer = try AudioProcessor.loadAudio(fromPath: audioPath)
-        let audioArray = AudioProcessor.convertBufferToArray(buffer: audioBuffer)
-        return try await detectLangauge(audioArray: audioArray)
+        return try await detectLanguage(audioBuffer: audioBuffer)
     }
     
     public func detectLanguage(
         audioUrl: URL
     ) async throws -> (language: String, langProbs: [String: Float]) {
         let audioBuffer = try AudioProcessor.loadAudio(fromUrl: audioUrl)
-        let audioArray = AudioProcessor.convertBufferToArray(buffer: audioBuffer)
-        return try await detectLangauge(audioArray: audioArray)
+        return try await detectLanguage(audioBuffer: audioBuffer)
     }
-
+    
+    public func detectLanguage(
+        audioBuffer: AVAudioPCMBuffer
+    ) async throws -> (language: String, langProbs: [String: Float]) {
+        let audioArray = AudioProcessor.convertBufferToArray(buffer: audioBuffer)
+        return try await detectLanguage(audioArray: audioArray)
+    }
+    
     /// Detects the language of the audio samples in the provided array.
     ///
     /// - Parameter audioArray: An array of audio samples.
     /// - Returns: A tuple containing the detected language and the language log probabilities.
-    public func detectLangauge(
+    public func detectLanguage(
         audioArray: [Float]
     ) async throws -> (language: String, langProbs: [String: Float]) {
         if modelState != .loaded {
