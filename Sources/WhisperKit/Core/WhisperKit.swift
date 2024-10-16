@@ -395,6 +395,14 @@ open class WhisperKit {
         let audioArray = AudioProcessor.convertBufferToArray(buffer: audioBuffer)
         return try await detectLangauge(audioArray: audioArray)
     }
+    
+    public func detectLanguage(
+        audioUrl: URL
+    ) async throws -> (language: String, langProbs: [String: Float]) {
+        let audioBuffer = try AudioProcessor.loadAudio(fromUrl: audioUrl)
+        let audioArray = AudioProcessor.convertBufferToArray(buffer: audioBuffer)
+        return try await detectLangauge(audioArray: audioArray)
+    }
 
     /// Detects the language of the audio samples in the provided array.
     ///
