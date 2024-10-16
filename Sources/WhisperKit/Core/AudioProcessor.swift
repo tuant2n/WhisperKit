@@ -27,6 +27,9 @@ public protocol AudioProcessing {
     /// - Returns: `AVAudioPCMBuffer` containing the audio data.
     static func loadAudio(fromPath audioFilePath: String, startTime: Double?, endTime: Double?, maxReadFrameSize: AVAudioFrameCount?) throws -> AVAudioPCMBuffer
 
+    static func loadAudio(fromUrl audioFileURL: URL, startTime: Double?, endTime: Double?,
+        maxReadFrameSize: AVAudioFrameCount?) throws -> AVAudioPCMBuffer
+    
     /// Loads and converts audio data from a specified file paths.
     /// - Parameter audioPaths: The file paths of the audio files.
     /// - Returns: Array of `.success` if the file was loaded and converted correctly, otherwise `.failure`
