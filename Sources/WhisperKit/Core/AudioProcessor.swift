@@ -200,6 +200,15 @@ public class AudioProcessor: NSObject, AudioProcessing {
         }
 
         let audioFileURL = URL(fileURLWithPath: audioFilePath)
+        return try loadAudio(fromUrl: audioFileURL, startTime: startTime, endTime: endTime, maxReadFrameSize: maxReadFrameSize)
+    }
+    
+    public static func loadAudio(
+        fromUrl audioFileURL: URL,
+        startTime: Double? = 0,
+        endTime: Double? = nil,
+        maxReadFrameSize: AVAudioFrameCount? = nil
+    ) throws -> AVAudioPCMBuffer {
         let audioFile = try AVAudioFile(forReading: audioFileURL, commonFormat: .pcmFormatFloat32, interleaved: false)
 
         let sampleRate = audioFile.fileFormat.sampleRate
