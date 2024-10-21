@@ -187,7 +187,7 @@ public extension String {
     }
 }
 
-extension AVAudioPCMBuffer {
+public extension AVAudioPCMBuffer {
     /// Appends the contents of another buffer to the current buffer
     func appendContents(of buffer: AVAudioPCMBuffer) -> Bool {
         return appendContents(of: buffer, startingFrame: 0, frameCount: buffer.frameLength)
