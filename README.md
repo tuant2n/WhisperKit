@@ -2,11 +2,11 @@
 <div align="center">
   
 <a href="https://github.com/argmaxinc/WhisperKit#gh-light-mode-only">
-  <img src="https://github.com/argmaxinc/WhisperKit/assets/1981179/6ac3360b-2f5c-4392-a71a-05c5dda71093" alt="WhisperKit" width="20%" />
+  <img src="https://github.com/user-attachments/assets/f0699c07-c29f-45b6-a9c6-f6d491b8f791" alt="WhisperKit" width="20%" />
 </a>
 
 <a href="https://github.com/argmaxinc/WhisperKit#gh-dark-mode-only">
-  <img src="https://github.com/argmaxinc/WhisperKit/assets/1981179/a682ce21-80e0-4a98-a99f-836663538a4f" alt="WhisperKit" width="20%" />
+  <img src="https://github.com/user-attachments/assets/1be5e31c-de42-40ab-9b85-790cb911ed47" alt="WhisperKit" width="20%" />
 </a>
 
 # WhisperKit
@@ -19,18 +19,20 @@
 
 </div>
 
-WhisperKit is a Swift package that integrates OpenAI's popular [Whisper](https://github.com/openai/whisper) speech recognition model with Apple's CoreML framework for efficient, local inference on Apple devices.
+WhisperKit is an [Argmax](https://www.takeargmax.com) framework for deploying state-of-the-art speech-to-text systems (e.g. [Whisper](https://github.com/openai/whisper)) on device with advanced features such as real-time streaming, word timestamps, voice activity detection, and more.
 
-Check out the demo app on [TestFlight](https://testflight.apple.com/join/LPVOyJZW).
+[[TestFlight Demo App]](https://testflight.apple.com/join/LPVOyJZW) [[Python Tools]](https://github.com/argmaxinc/whisperkittools) [[Benchmarks & Device Support]](https://huggingface.co/spaces/argmaxinc/whisperkit-benchmarks) [[WhisperKit Android]](https://github.com/argmaxinc/WhisperKitAndroid)
 
-[[Blog Post]](https://www.takeargmax.com/blog/whisperkit) [[Python Tools Repo]](https://github.com/argmaxinc/whisperkittools)
+> [!IMPORTANT]
+> If you are looking for more features such as speaker diarization and upgraded performance, check out [WhisperKit Pro](https://huggingface.co/argmaxinc/whisperkit-pro) and [SpeakerKit Pro](https://huggingface.co/argmaxinc/speakerkit-pro)! For commercial use or evaluation, please reach out to [whisperkitpro@argmaxinc.com](mailto:whisperkitpro@argmaxinc.com).
 
 ## Table of Contents
 
 - [Installation](#installation)
   - [Swift Package Manager](#swift-package-manager)
   - [Prerequisites](#prerequisites)
-  - [Steps](#steps)
+  - [Xcode Steps](#xcode-steps)
+  - [Package.swift](#packageswift)
   - [Homebrew](#homebrew)
 - [Getting Started](#getting-started)
   - [Quick Example](#quick-example)
@@ -52,13 +54,32 @@ WhisperKit can be integrated into your Swift project using the Swift Package Man
 - macOS 14.0 or later.
 - Xcode 15.0 or later.
 
-### Steps
+### Xcode Steps
 
 1. Open your Swift project in Xcode.
 2. Navigate to `File` > `Add Package Dependencies...`.
 3. Enter the package repository URL: `https://github.com/argmaxinc/whisperkit`.
 4. Choose the version range or specific version.
 5. Click `Finish` to add WhisperKit to your project.
+
+### Package.swift
+
+If you're using WhisperKit as part of a swift package, you can include it in your Package.swift dependencies as follows:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.9.0"),
+],
+```
+
+Then add `WhisperKit` as a dependency for your target:
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: ["WhisperKit"]
+),
+```
 
 ### Homebrew
 
@@ -92,13 +113,13 @@ Task {
 WhisperKit automatically downloads the recommended model for the device if not specified. You can also select a specific model by passing in the model name:
 
 ```swift
-let pipe = try? await WhisperKit(model: "large-v3")
+let pipe = try? await WhisperKit(WhisperKitConfig(model: "large-v3"))
 ```
 
 This method also supports glob search, so you can use wildcards to select a model:
 
 ```swift
-let pipe = try? await WhisperKit(model: "distil*large-v3")
+let pipe = try? await WhisperKit(WhisperKitConfig(model: "distil*large-v3"))
 ```
 
 Note that the model search must return a single model from the source repo, otherwise an error will be thrown.
@@ -110,7 +131,8 @@ For a list of available models, see our [HuggingFace repo](https://huggingface.c
 WhisperKit also comes with the supporting repo [`whisperkittools`](https://github.com/argmaxinc/whisperkittools) which lets you create and deploy your own fine tuned versions of Whisper in CoreML format to HuggingFace. Once generated, they can be loaded by simply changing the repo name to the one used to upload the model:
 
 ```swift
-let pipe = try? await WhisperKit(model: "large-v3", modelRepo: "username/your-model-repo")
+let config = WhisperKitConfig(model: "large-v3", modelRepo: "username/your-model-repo")
+let pipe = try? await WhisperKit(config)
 ```
 
 ### Swift CLI
@@ -162,7 +184,7 @@ WhisperKit is released under the MIT License. See [LICENSE](LICENSE) for more de
 
 ## Citation
 
-If you use WhisperKit for something cool or just find it useful, please drop us a note at [info@takeargmax.com](mailto:info@takeargmax.com)!
+If you use WhisperKit for something cool or just find it useful, please drop us a note at [info@argmaxinc.com](mailto:info@argmaxinc.com)!
 
 If you use WhisperKit for academic work, here is the BibTeX:
 

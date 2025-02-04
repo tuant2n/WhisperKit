@@ -48,9 +48,9 @@ open class VADAudioChunker: AudioChunking {
     private let windowPadding: Int
     private let vad: VoiceActivityDetector
 
-    init(windowPadding: Int = 16000, vad: VoiceActivityDetector = EnergyVAD()) {
+    public init(windowPadding: Int = 16000, vad: VoiceActivityDetector? = nil) {
         self.windowPadding = windowPadding
-        self.vad = vad
+        self.vad = vad ?? EnergyVAD()
     }
 
     private func splitOnMiddleOfLongestSilence(audioArray: [Float], startIndex: Int, endIndex: Int) -> Int {
@@ -81,8 +81,7 @@ open class VADAudioChunker: AudioChunking {
             // Typically this will be the full audio file, unless seek points are explicitly provided
             var startIndex = seekClipStart
             while startIndex < seekClipEnd - windowPadding {
-                let currentFrameLength = startIndex - seekClipStart
-                if startIndex >= currentFrameLength, startIndex < 0 {
+                guard startIndex >= 0 && startIndex < audioArray.count else {
                     throw WhisperError.audioProcessingFailed("startIndex is outside the buffer size")
                 }
 

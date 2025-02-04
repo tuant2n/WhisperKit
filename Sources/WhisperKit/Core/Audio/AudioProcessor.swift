@@ -99,9 +99,7 @@ public extension AudioProcessing {
     }
 
     static func padOrTrimAudio(fromArray audioArray: [Float], startAt startIndex: Int = 0, toLength frameLength: Int = 480_000, saveSegment: Bool = false) -> MLMultiArray? {
-        let currentFrameLength = audioArray.count
-
-        if startIndex >= currentFrameLength, startIndex < 0 {
+        guard startIndex >= 0, startIndex < audioArray.count else {
             Logging.error("startIndex is outside the buffer size")
             return nil
         }
@@ -187,7 +185,6 @@ public class AudioProcessor: NSObject, AudioProcessing {
     }
 
     public var audioBufferCallback: (([Float]) -> Void)?
-    public var maxBufferLength = WhisperKit.sampleRate * WhisperKit.chunkLength // 30 seconds of audio at 16,000 Hz
     public var minBufferLength = Int(Double(WhisperKit.sampleRate) * 0.1) // 0.1 second of audio at 16,000 Hz
 
     // MARK: - Loading and conversion
@@ -213,7 +210,15 @@ public class AudioProcessor: NSObject, AudioProcessing {
         maxReadFrameSize: AVAudioFrameCount? = nil
     ) throws -> AVAudioPCMBuffer {
         let audioFile = try AVAudioFile(forReading: audioFileURL, commonFormat: .pcmFormatFloat32, interleaved: false)
+        return try loadAudio(fromFile: audioFile, startTime: startTime, endTime: endTime, maxReadFrameSize: maxReadFrameSize)
+    }
 
+    public static func loadAudio(
+        fromFile audioFile: AVAudioFile,
+        startTime: Double? = 0,
+        endTime: Double? = nil,
+        maxReadFrameSize: AVAudioFrameCount? = nil
+    ) throws -> AVAudioPCMBuffer {
         let sampleRate = audioFile.fileFormat.sampleRate
         let channelCount = audioFile.fileFormat.channelCount
         let frameLength = AVAudioFrameCount(audioFile.length)
@@ -239,7 +244,11 @@ public class AudioProcessor: NSObject, AudioProcessing {
             guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: frameCount) else {
                 throw WhisperError.loadAudioFailed("Unable to create audio buffer")
             }
-            try audioFile.read(into: buffer, frameCount: frameCount)
+            do {
+                try audioFile.read(into: buffer, frameCount: frameCount)
+            } catch {
+                throw WhisperError.loadAudioFailed("Failed to read audio file: \(error)")
+            }
             outputBuffer = buffer
         } else {
             // Audio needs resampling to 16khz
@@ -259,13 +268,56 @@ public class AudioProcessor: NSObject, AudioProcessing {
         }
     }
 
+    public static func loadAudioAsFloatArray(
+        fromPath audioFilePath: String,
+        startTime: Double? = 0,
+        endTime: Double? = nil
+    ) throws -> [Float] {
+        guard FileManager.default.fileExists(atPath: audioFilePath) else {
+            throw WhisperError.loadAudioFailed("Resource path does not exist \(audioFilePath)")
+        }
+
+        let audioFileURL = URL(fileURLWithPath: audioFilePath)
+        let audioFile = try AVAudioFile(forReading: audioFileURL, commonFormat: .pcmFormatFloat32, interleaved: false)
+        let inputSampleRate = audioFile.fileFormat.sampleRate
+        let inputFrameCount = AVAudioFrameCount(audioFile.length)
+        let inputDuration = Double(inputFrameCount) / inputSampleRate
+
+        let start = startTime ?? 0
+        let end = min(endTime ?? inputDuration, inputDuration)
+
+        // Load 10m of audio at a time to reduce peak memory while converting
+        // Particularly impactful for large audio files
+        let chunkDuration: Double = 60 * 10
+        var currentTime = start
+        var result: [Float] = []
+
+        while currentTime < end {
+            let chunkEnd = min(currentTime + chunkDuration, end)
+
+            try autoreleasepool {
+                let buffer = try loadAudio(
+                    fromFile: audioFile,
+                    startTime: currentTime,
+                    endTime: chunkEnd
+                )
+
+                let floatArray = Self.convertBufferToArray(buffer: buffer)
+                result.append(contentsOf: floatArray)
+            }
+
+            currentTime = chunkEnd
+        }
+
+        return result
+    }
+
     public static func loadAudio(at audioPaths: [String]) async -> [Result<[Float], Swift.Error>] {
         await withTaskGroup(of: [(index: Int, result: Result<[Float], Swift.Error>)].self) { taskGroup -> [Result<[Float], Swift.Error>] in
             for (index, audioPath) in audioPaths.enumerated() {
                 taskGroup.addTask {
                     do {
-                        let audioBuffer = try AudioProcessor.loadAudio(fromPath: audioPath)
-                        let audio = AudioProcessor.convertBufferToArray(buffer: audioBuffer)
+                        let audio = try AudioProcessor.loadAudioAsFloatArray(fromPath: audioPath)
                         return [(index: index, result: .success(audio))]
                     } catch {
                         return [(index: index, result: .failure(error))]
@@ -296,10 +348,10 @@ public class AudioProcessor: NSObject, AudioProcessing {
         frameCount: AVAudioFrameCount? = nil,
         maxReadFrameSize: AVAudioFrameCount = Constants.defaultAudioReadFrameSize
     ) -> AVAudioPCMBuffer? {
-        let inputFormat = audioFile.fileFormat
+        let inputSampleRate = audioFile.fileFormat.sampleRate
         let inputStartFrame = audioFile.framePosition
         let inputFrameCount = frameCount ?? AVAudioFrameCount(audioFile.length)
-        let inputDuration = Double(inputFrameCount) / inputFormat.sampleRate
+        let inputDuration = Double(inputFrameCount) / inputSampleRate
         let endFramePosition = min(inputStartFrame + AVAudioFramePosition(inputFrameCount), audioFile.length + 1)
 
         guard let outputFormat = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: channelCount) else {
@@ -316,13 +368,15 @@ public class AudioProcessor: NSObject, AudioProcessing {
         }
 
         let inputBuffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: maxReadFrameSize)!
-
-        while audioFile.framePosition < endFramePosition {
-            let remainingFrames = AVAudioFrameCount(endFramePosition - audioFile.framePosition)
+        var nextPosition = inputStartFrame
+        while nextPosition < endFramePosition {
+            let framePosition = audioFile.framePosition
+            let remainingFrames = AVAudioFrameCount(endFramePosition - framePosition)
             let framesToRead = min(remainingFrames, maxReadFrameSize)
+            nextPosition = framePosition + Int64(framesToRead)
 
-            let currentPositionInSeconds = Double(audioFile.framePosition) / inputFormat.sampleRate
-            let nextPositionInSeconds = (Double(audioFile.framePosition) + Double(framesToRead)) / inputFormat.sampleRate
+            let currentPositionInSeconds = Double(framePosition) / inputSampleRate
+            let nextPositionInSeconds = Double(nextPosition) / inputSampleRate
             Logging.debug("Resampling \(String(format: "%.2f", currentPositionInSeconds))s - \(String(format: "%.2f", nextPositionInSeconds))s")
 
             do {
@@ -385,8 +439,8 @@ public class AudioProcessor: NSObject, AudioProcessing {
 
         // Check if the capacity is a whole number
         if capacity.truncatingRemainder(dividingBy: 1) != 0 {
-            // Round to the nearest whole number
-            let roundedCapacity = capacity.rounded(.toNearestOrEven)
+            // Round to the nearest whole number, which is non-zero
+            let roundedCapacity = max(1, capacity.rounded(.toNearestOrEven))
             Logging.debug("Rounding buffer frame capacity from \(capacity) to \(roundedCapacity) to better fit new sample rate")
             capacity = roundedCapacity
         }
@@ -434,7 +488,7 @@ public class AudioProcessor: NSObject, AudioProcessing {
     ) -> Bool {
         // Calculate the number of energy values to consider based on the duration of the next buffer
         // Each energy value corresponds to 1 buffer length (100ms of audio), hence we divide by 0.1
-        let energyValuesToConsider = Int(nextBufferInSeconds / 0.1)
+        let energyValuesToConsider = max(0, Int(nextBufferInSeconds / 0.1))
 
         // Extract the relevant portion of energy values from the currentRelativeEnergy array
         let nextBufferEnergies = relativeEnergy.suffix(energyValuesToConsider)
@@ -660,7 +714,7 @@ public class AudioProcessor: NSObject, AudioProcessing {
                 &propertySize,
                 &name
             )
-            if status == noErr, let deviceNameCF = name?.takeUnretainedValue() as String? {
+            if status == noErr, let deviceNameCF = name?.takeRetainedValue() as String? {
                 deviceName = deviceNameCF
             }
 
