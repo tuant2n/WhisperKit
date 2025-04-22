@@ -839,7 +839,17 @@ public extension AudioProcessor {
         }
         
         if let outputFile = outputFile {
-            let audioFile = try AVAudioFile.init(forWriting: outputFile, settings: nodeFormat.settings)
+            let settings = [
+                        AVFormatIDKey: Int(kAudioFormatLinearPCM),
+                        AVSampleRateKey: inputFormat.sampleRate,
+                        AVNumberOfChannelsKey: inputFormat.channelCount,
+                        AVLinearPCMBitDepthKey: 16,
+                        AVLinearPCMIsFloatKey: false,
+                        AVLinearPCMIsBigEndianKey: false,
+                        AVLinearPCMIsNonInterleaved: false
+                    ] as [String: Any]
+            
+            let audioFile = try AVAudioFile.init(forWriting: outputFile, settings: settings)
             self.recordFile = audioFile
         }
 
